@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
@@ -10,9 +9,9 @@ namespace RopeAction
         public static RopeQueue m_Instance;
         
         [SerializeField, Range(1, 8)] int threadCount = 4;
-        [SerializeField, Range(1, 256)] int maxInQueue = 216;
 
-        public Queue<MeshData>[] Submissions;
+        [SerializeField] int[] m_SubmissionCounts;
+        Queue<MeshData>[] Submissions;
 
         public static RopeQueue Instance
         {
@@ -29,10 +28,36 @@ namespace RopeAction
             }
         }
 
+        public int RegistrationThread
+        {
+            get
+            {
+                int lowestId = 0;
+                int count = m_SubmissionCounts[0];
+                for (int i = 1; i < m_SubmissionCounts.Length; i++)
+                {
+                    if (m_SubmissionCounts[i] < count)
+                    {
+                        lowestId = i;
+                        count = m_SubmissionCounts[i];
+                    }
+                }
+
+                m_SubmissionCounts[lowestId]++;
+                return lowestId;
+            }
+        }
+
+        public void DismissRegistration(int threadId)
+        {
+            m_SubmissionCounts[threadId]--;
+        }
+        
         void Init()
         {
             Submissions = new Queue<MeshData>[threadCount];
             for (int i = 0; i < threadCount; i++) Submissions[i] = new Queue<MeshData>();
+            m_SubmissionCounts = new int[threadCount];
         }
         
         void FixedUpdate()
@@ -59,24 +84,9 @@ namespace RopeAction
         public void QueueUp(MeshData data)
         {
             if (Submissions.Length == 0) return;
-            
-            int lowest = 0;
-            int lowestSize = Submissions[0].Count;
-            for (int i = 1; i < Submissions.Length; i++)
-            {
-                int newSize = Submissions[i].Count;
-                if (lowestSize > newSize)
-                {
-                    lowestSize = newSize;
-                    lowest = i;
-                }
-            }
 
-            lock (Submissions[lowest])
-            {
-                if (lowestSize >= maxInQueue) Submissions[lowest].Dequeue();
-                Submissions[lowest].Enqueue(data);
-            }
+            lock (Submissions[data.ThreadID])
+            { Submissions[data.ThreadID].Enqueue(data); }
         }
 
         void ProcessData(MeshData data)

@@ -5,6 +5,7 @@ namespace RopeAction
 {
     public struct MeshData
     {
+        public int ThreadID;
         public Vector3 StartPoint;
         public Vector3 StartUp;
         public Vector3 StartRight;
@@ -82,6 +83,8 @@ namespace RopeAction
         Mesh m_Mesh;
         float m_LastMoveTime = -100f;
         Vector3 m_OldPos1, m_OldPos2;
+        int m_ThreadID;
+        RopeQueue m_RopeQueue;
         
         public Material Material
         {
@@ -91,6 +94,9 @@ namespace RopeAction
         
         void Awake()
         {
+            m_RopeQueue = RopeQueue.Instance;
+            m_ThreadID = RopeQueue.Instance.RegistrationThread;
+            
             m_Mesh = new Mesh
             {
                 name = "CapsuleMesh"
@@ -182,8 +188,9 @@ namespace RopeAction
             float radius = ropeRadius * (1 - Mathf.Min(1 - minimumRadiusPercent,
                 Mathf.Max(0, currentDistance - restingDistance) * stretchiness));
             
-            RopeQueue.Instance.QueueUp(new MeshData
+            m_RopeQueue.QueueUp(new MeshData
             {
+                ThreadID = m_ThreadID,
                 StartPoint = m_OldPos1,
                 StartUp = p1.up,
                 StartRight = p1.right,
@@ -238,6 +245,7 @@ namespace RopeAction
         {
             if (m_MeshObject != null)
             {
+                if(m_RopeQueue != null) m_RopeQueue.DismissRegistration(m_ThreadID);
                 Destroy(m_MeshObject);
                 Destroy(m_Mesh);
             }
